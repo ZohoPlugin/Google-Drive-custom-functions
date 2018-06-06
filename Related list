@@ -1,213 +1,206 @@
-// Note: the custom function should have "record_id" parameter
-// getting record info from Leads(Modules) using the record_id
- 
-lead_info = zoho.crm.getRecordById("Leads", lead_id.toLong());
+// NB function should have arguments record_id and MODULE_NAME
+// Map record_id to the ID for that module
+// Manually set the value of MODULE_NAME to the API Name for that module
+// This way you can use the same function for every module.
+
+current_record = zoho.crm.getRecordById(MODULE_NAME,record_id);
+folder_name = current_record.get("Name");
+
 //Get the drive_folder_id and url from lead_info
-drive_folder_id = lead_info.get("Drive Folder ID");
-drive_url = lead_info.get("Drive URL");
-if (((drive_folder_id != null) || (drive_folder_id != "")) && ((drive_url == null) || (drive_url == "")))
+drive_folder_id = current_record.get("Drive_Folder_ID");
+drive_url = current_record.get("Drive_URL");
+if((drive_folder_id != null || drive_folder_id != "") && (drive_url == null || drive_url == ""))
 {
-update_map = map();
-update_map.put("Drive URL", "https://drive.google.com/drive/folders/" + drive_folder_id);
-updateResp = zoho.crm.updateRecord("Leads", lead_id + "", update_map);
+	update_map = Map();
+	update_map.put("Drive_URL","https://drive.google.com/drive/folders/" + drive_folder_id);
+	updateResp = zoho.crm.update(MODULE_NAME,record_id,update_map);
 }
-if ((drive_folder_id == null) || (drive_folder_id == ""))
+if(drive_folder_id == null || drive_folder_id == "")
 {
-rootFolderId = zoho.crm.getOrgVariable("gdriveextension.google_rootfolder_id");
-if ((rootFolderId == "") || (rootFolderId == "none"))
-{
-            // Zoho CRM folder
-rootFolderParam = map();
-rootFolderParam.put("folder_name", "Zoho CRM");
-rootFolderParam.put("parent", "root");
-rootFolderResp = zoho.crm.invokeConnector("gdriveextension.googledriveconnector.createfolder", rootFolderParam, true);
-if (rootFolderResp == null)
-{
-xmlList = "<error><message>Please authorize Google Drive to view Google Drive Files. You can authorize Google Drive from Google Drive Settings tab .</message></error>";
-return xmlList;
-}
-rootFolderStatus = rootFolderResp.get("status_code");
-if (rootFolderStatus == "200")
-{
-rootFolderId = rootFolderResp.get("response").getJSON("id");
-}
-if (rootFolderId != "")
-{
-settingParam = map();
-settingParam.put("apiname", "gdriveextension.google_rootfolder_id");
-settingParam.put("value", rootFolderId);
-setting_resp = zoho.crm.invokeConnector("crm.set", settingParam);
-}
-else
-{
-xmlList = ("<error><message>No files exists for this record.</message></error>");
-return xmlList;
-}
-}
-parent_obj = map();
-parent_obj.put("parent", rootFolderId);
-parent_obj.put(("maxResults"), 100);
-folder_items_map = zoho.crm.invokeConnector(("gdriveextension.googledriveconnector.getsubfolders"), parent_obj, true);
-if (folder_items_map == null)
-{
-xmlList = "<error><message>Please authorize Google Drive to view Google Drive Files. You can authorize Google Drive from Google Drive Settings tab.</message></error>";
-return xmlList;
-}
-folder_items_status = folder_items_map.get("status_code");
-lead_folder_id = "";
-if (folder_items_status == "200")
-{
-listfolder_resp = folder_items_map.get("response");
-items = listfolder_resp.getJSON("items");
-items_list = items.toJSONList();
-for each item in items_list
-{
-title = item.getJSON("title");
-if (title == "Leads")
-{
-lead_folder_id = item.getJSON("id");
-}
-}
-}
-if (lead_folder_id == "")
-{
-tokenObj = map();
-tokenObj.put("folder_name", "Leads");
-tokenObj.put("parent", rootFolderId);
-createFlrResp = zoho.crm.invokeConnector("gdriveextension.googledriveconnector.createfolder", tokenObj, true);
-if (createFlrResp == null)
-{
-xmlList = "<error><message>Please authorize Google Drive to view Google Drive Files. You can authorize Google Drive from Google Drive Settings tab.</message></error>";
-return xmlList;
-}
-status_code = createFlrResp.get("status_code");
-resp_obj = createFlrResp.get("response");
-lead_folder_id = resp_obj.getJSON("id");
-if (lead_folder_id == "")
-{
-xmlList = ("<error><message>No files exists for this record.</message></error>");
-return xmlList;
-}
-}
-first_name = lead_info.get("First Name");
-last_name = lead_info.get("Last Name");
-if (first_name == null)
-{
-first_name = "";
-}
-if (last_name == null)
-{
-last_name = "";
-}
-full_name = first_name + " " + last_name;
-full_name = full_name.trim();
-tokenObj2 = map();
-tokenObj2.put("folder_name", full_name);
-tokenObj2.put("parent", lead_folder_id);
-//Create folder in record name under Parent folder
-createFlrResp2 = zoho.crm.invokeConnector("gdriveextension.googledriveconnector.createfolder", tokenObj2, true);
-status_code2 = createFlrResp2.get("status_code");
-resp_obj2 = createFlrResp2.get("response");
-rec_folder_id = "";
-if (status_code2 == "200")
-{
-rec_folder_id = resp_obj2.getJSON("id");
-}
-if (rec_folder_id != "")
-{
-updateMap = map();
-updateMap.put("Drive Folder ID", rec_folder_id);
-update_resp = zoho.crm.updateRecord("Leads", lead_id + "", updateMap);
-}
-xmlList = ("<error><message>No files exists for this record.</message></error>");
-return xmlList;
+	rootFolderId = zoho.crm.getOrgVariable("gdriveextension.google_rootfolder_id");
+	if(rootFolderId == "" || rootFolderId == "none")
+	{
+		// Zoho CRM folder
+		rootFolderParam = Map();
+		rootFolderParam.put("folder_name","Zoho CRM");
+		rootFolderParam.put("parent","root");
+		rootFolderResp = zoho.crm.invokeConnector("gdriveextension.googledriveconnector.createfolder",rootFolderParam,true);
+		if(rootFolderResp == null)
+		{
+			xmlList = "<error><message>Please authorize Google Drive to view Google Drive Files. You can authorize Google Drive from Google Drive Settings tab .</message></error>";
+			return xmlList;
+		}
+		rootFolderStatus = rootFolderResp.get("status_code");
+		if(rootFolderStatus == "200")
+		{
+			rootFolderId = rootFolderResp.get("response").getJSON("id");
+		}
+		if(rootFolderId != "")
+		{
+			settingParam = Map();
+			settingParam.put("apiname","gdriveextension.google_rootfolder_id");
+			settingParam.put("value",rootFolderId);
+			setting_resp = zoho.crm.invokeConnector("crm.set",settingParam);
+		}
+		else
+		{
+			xmlList = "<error><message>No files exists for this record.</message></error>";
+			return xmlList;
+		}
+	}
+	parent_obj = Map();
+	parent_obj.put("parent",rootFolderId);
+	parent_obj.put("maxResults",100);
+	folder_items_map = zoho.crm.invokeConnector("gdriveextension.googledriveconnector.getsubfolders",parent_obj,true);
+	if(folder_items_map == null)
+	{
+		xmlList = "<error><message>Please authorize Google Drive to view Google Drive Files. You can authorize Google Drive from Google Drive Settings tab.</message></error>";
+		return xmlList;
+	}
+	folder_items_status = folder_items_map.get("status_code");
+	lead_folder_id = "";
+	if(folder_items_status == "200")
+	{
+		listfolder_resp = folder_items_map.get("response");
+		items = listfolder_resp.getJSON("items");
+		items_list = items.toJSONList();
+		for each  item in items_list
+		{
+			title = item.getJSON("title");
+			if(title == "Leads")
+			{
+				lead_folder_id = item.getJSON("id");
+			}
+		}
+	}
+	if(lead_folder_id == "")
+	{
+		tokenObj = Map();
+		tokenObj.put("folder_name",MODULE_NAME);
+		tokenObj.put("parent",rootFolderId);
+		createFlrResp = zoho.crm.invokeConnector("gdriveextension.googledriveconnector.createfolder",tokenObj,true);
+		if(createFlrResp == null)
+		{
+			xmlList = "<error><message>Please authorize Google Drive to view Google Drive Files. You can authorize Google Drive from Google Drive Settings tab.</message></error>";
+			return xmlList;
+		}
+		status_code = createFlrResp.get("status_code");
+		resp_obj = createFlrResp.get("response");
+		lead_folder_id = resp_obj.getJSON("id");
+		if(lead_folder_id == "")
+		{
+			xmlList = "<error><message>No files exists for this record.</message></error>";
+			return xmlList;
+		}
+	}
+	tokenObj2 = Map();
+	tokenObj2.put("folder_name",folder_name);
+	tokenObj2.put("parent",lead_folder_id);
+	//Create folder in record name under Parent folder
+	createFlrResp2 = zoho.crm.invokeConnector("gdriveextension.googledriveconnector.createfolder",tokenObj2,true);
+	status_code2 = createFlrResp2.get("status_code");
+	resp_obj2 = createFlrResp2.get("response");
+	rec_folder_id = "";
+	if(status_code2 == "200")
+	{
+		rec_folder_id = resp_obj2.getJSON("id");
+	}
+	if(rec_folder_id != "")
+	{
+		updateMap = Map();
+		updateMap.put("Drive Folder ID",rec_folder_id);
+		update_resp = zoho.crm.update(MODULE_NAME,record_id,updateMap);
+	}
+	xmlList = "<error><message>No files exists for this record.</message></error>";
+	return xmlList;
 }
 else
 {
-tokenMap = map();
-tokenMap.put("parent", drive_folder_id);
-tokenMap.put(("maxResults"), 100);
-//Get Drive Files using the tokenMap
-folder_items_map = zoho.crm.invokeConnector(("gdriveextension.googledriveconnector.getdrivefiles"), tokenMap, true);
-if (folder_items_map == null)
-{
-xmlList = "<error><message>Please authorize Google Drive to view Google Drive Files. You can authorize Google Drive from Google Drive Settings tab.</message></error>";
-return xmlList;
+	tokenMap = Map();
+	tokenMap.put("parent",drive_folder_id);
+	tokenMap.put("maxResults",100);
+	//Get Drive Files using the tokenMap
+	folder_items_map = zoho.crm.invokeConnector("gdriveextension.googledriveconnector.getdrivefiles",tokenMap,true);
+	if(folder_items_map == null)
+	{
+		xmlList = "<error><message>Please authorize Google Drive to view Google Drive Files. You can authorize Google Drive from Google Drive Settings tab.</message></error>";
+		return xmlList;
+	}
+	folder_items_status = folder_items_map.get("status_code");
+	if(folder_items_status == "200")
+	{
+		listfolder_resp = folder_items_map.get("response");
+		listfolder_items = listfolder_resp.getJSON("items");
+		listfolder_list = listfolder_items.toJSONList();
+		//Convert the listfolder_items to JSON list.
+		if(listfolder_list.toString() == null || listfolder_list.size() == 0)
+		{
+			xmlList = "<error><message>No files exists for this record.</message></error>";
+			return xmlList;
+		}
+		else
+		{
+			i = 0;
+			recordsXmlStr = "<record>";
+			for each  item in listfolder_list
+			{
+				id = item.getJSON("id");
+				title = item.getJSON("title");
+				file_size = item.getJSON("quotaBytesUsed");
+				if(file_size == "0" || file_size == null || file_size == "" || file_size == "null")
+				{
+					size_str = "-";
+				}
+				else
+				{
+					size_str = "-";
+					size_str = file_size.toDecimal() / 1024 + "";
+					if(size_str.indexOf(".") > 0)
+					{
+						pos = size_str.indexOf(".") + 3;
+						if(pos > size_str.length())
+						{
+							pos = size_str.length();
+						}
+						size_str = size_str.subString(0,pos);
+					}
+					size_str = size_str + " KB";
+				}
+				modifiedbyme_date = item.getJSON("modifiedDate");
+				if(modifiedbyme_date != "")
+				{
+					modifiedbyme_date = modifiedbyme_date.replaceAll("T"," ");
+					modifiedbyme_date = modifiedbyme_date.replaceAll("Z"," ");
+				}
+				modified_username = item.getJSON("lastModifyingUserName");
+				mimeType = item.getJSON("mimeType");
+				if(mimeType == "application/vnd.google-apps.folder")
+				{
+					mimeType = "Folder";
+					link = "https://drive.google.com/drive/folders/" + id;
+				}
+				else
+				{
+					mimeType = "File";
+					link = "https://drive.google.com/file/d/" + id + "/view";
+				}
+				//Construct the XML using the above JSON Objects
+				recordsXmlStr = recordsXmlStr + "<row no='" + i + "'>";
+				recordsXmlStr = recordsXmlStr + "<FL val='Title' link='true' url='" + link + "'><![CDATA[" + title + "]]></FL>";
+				recordsXmlStr = recordsXmlStr + "<FL val='Type'>" + mimeType + "</FL>";
+				recordsXmlStr = recordsXmlStr + "<FL val='Size'>" + size_str + "</FL>";
+				recordsXmlStr = recordsXmlStr + "<FL val='Last modified at'>" + modifiedbyme_date + "</FL>";
+				recordsXmlStr = recordsXmlStr + "<FL val='Last modified by'><![CDATA[" + modified_username + "]]></FL>";
+				recordsXmlStr = recordsXmlStr + "</row>";
+			}
+			recordsXmlStr = recordsXmlStr + "</record>";
+			return recordsXmlStr;
+		}
+	}
+	else
+	{
+		xmlList = "<error><message>Unable to get files related to this record from Google Drive.</message></error>";
+		return xmlList;
+	}
 }
-folder_items_status = folder_items_map.get("status_code");
-if (folder_items_status == "200")
-{
-listfolder_resp = folder_items_map.get("response");
-listfolder_items = listfolder_resp.getJSON("items");
-listfolder_list = listfolder_items.toJSONList();
-//Convert the listfolder_items to JSON list.
-if ((listfolder_list.toString() == null) || (listfolder_list.size() == 0))
-{
-xmlList = ("<error><message>No files exists for this record.</message></error>");
-return xmlList;
-}
-else
-{
-i = 0;
-recordsXmlStr = "<record>";
-for each item in listfolder_list
-{
-id = item.getJSON("id");
-title = item.getJSON("title");
-file_size = item.getJSON("quotaBytesUsed");
-if ((((file_size == "0") || (file_size == null)) || (file_size == "")) || (file_size == "null"))
-{
-size_str = "-";
-}
-else
-{
-size_str = "-";
-size_str = ((((file_size).toDecimal() / 1024))) + "";
-if (size_str.indexOf(".") > 0)
-{
-pos = (size_str.indexOf(".") + 3);
-if (pos > size_str.length())
-{
-pos = size_str.length();
-}
-size_str = size_str.subString(0,pos);
-}
-size_str = (size_str) + " KB";
-}
-modifiedbyme_date = item.getJSON("modifiedDate");
-if (modifiedbyme_date != "")
-{
-modifiedbyme_date = modifiedbyme_date.replaceAll("T"," ");
-modifiedbyme_date = modifiedbyme_date.replaceAll("Z"," ");
-}
-modified_username = item.getJSON("lastModifyingUserName");
-mimeType = item.getJSON("mimeType");
-if (mimeType == "application/vnd.google-apps.folder")
-{
-mimeType = "Folder";
-link = "https://drive.google.com/drive/folders/" + id;
-}
-else
-{
-mimeType = "File";
-link = "https://drive.google.com/file/d/" + id + "/view";
-}
-//Construct the XML using the above JSON Objects
-recordsXmlStr = recordsXmlStr + "<row no='" + i + "'>";
-recordsXmlStr = recordsXmlStr + "<FL val='Title' link='true' url='" + link + "'><![CDATA[" + title + "]]></FL>";
-recordsXmlStr = recordsXmlStr + "<FL val='Type'>" + mimeType + "</FL>";
-recordsXmlStr = (recordsXmlStr + "<FL val='Size'>" + size_str) + "</FL>";
-recordsXmlStr = recordsXmlStr + "<FL val='Last modified at'>" + modifiedbyme_date + "</FL>";
-recordsXmlStr = recordsXmlStr + "<FL val='Last modified by'><![CDATA[" + modified_username + "]]></FL>";
-recordsXmlStr = recordsXmlStr + "</row>";
-}
-recordsXmlStr = recordsXmlStr + "</record>";
-return recordsXmlStr;
-}
-}
-else
-{
-xmlList = ("<error><message>Unable to get files related to this record from Google Drive.</message></error>");
-return xmlList;
-}
-}
+return "";
