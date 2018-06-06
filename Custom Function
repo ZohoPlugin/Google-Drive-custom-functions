@@ -1,111 +1,108 @@
 // Note: the custom function should have "record_id" parameter
-// getting record info from Leads or Quotes using the record_id
-lead_info = zoho.crm.getRecordById("Leads", lead_id.toLong());
-//Get the Drive Folder ID from the lead_info
-drive_folder_id = lead_info.get("Drive Folder ID");
+MODULE_NAME = "Shipments";
+
+current_record = zoho.crm.getRecordById(MODULE_NAME, record_id);
+folder_name = current_record.get("Name");
+drive_folder_id = current_record.get("Drive_Folder_ID");
+
 //Satisfies those below conditions if drive_folder_id is empty
-if ((drive_folder_id == null) || (drive_folder_id == ""))
-{
-rootFolderId = zoho.crm.getOrgVariable("gdriveextension.google_rootfolder_id");
-if (rootFolderId == "")
-{
-// Zoho CRM folder
-rootFolderParam = map();
-rootFolderParam.put("folder_name", "Zoho CRM");
-rootFolderParam.put("parent", "root");
-rootFolderResp = zoho.crm.invokeConnector("gdriveextension.googledriveconnector.createfolder", rootFolderParam, true);
-if (rootFolderResp == null)
-{
-return;
+if (drive_folder_id == null || drive_folder_id == "") {
+  rootFolderId = zoho.crm.getOrgVariable(
+    "gdriveextension.google_rootfolder_id"
+  );
+  if (rootFolderId == "") {
+    // Zoho CRM folder
+    rootFolderParam = map();
+    rootFolderParam.put("folder_name", "Zoho CRM");
+    rootFolderParam.put("parent", "root");
+    rootFolderResp = zoho.crm.invokeConnector(
+      "gdriveextension.googledriveconnector.createfolder",
+      rootFolderParam,
+      true
+    );
+    if (rootFolderResp == null) {
+      return;
+    }
+    rootFolderStatus = rootFolderResp.get("status_code");
+    if (rootFolderStatus == "200") {
+      rootFolderId = rootFolderResp.get("response").getJSON("id");
+    }
+    if (rootFolderId != "") {
+      settingParam = map();
+      settingParam.put("apiname", "gdriveextension.google_rootfolder_id");
+      settingParam.put("value", rootFolderId);
+      setting_resp = zoho.crm.invokeConnector("crm.set", settingParam);
+    } else {
+      return;
+    }
+  }
+  parent_obj = map();
+  parent_obj.put("parent", rootFolderId);
+  parent_obj.put("maxResults", 200);
+  //Get the folders and files from the Record created under Root Folder using the GDrive API
+  folder_items_map = zoho.crm.invokeConnector(
+    "gdriveextension.googledriveconnector.getsubfolders",
+    parent_obj,
+    true
+  );
+  folder_items_status = folder_items_map.get("status_code");
+  folder_id = "";
+  if (folder_items_status == "200") {
+    listfolder_resp = folder_items_map.get("response");
+    items = listfolder_resp.getJSON("items");
+    items_list = items.toJSONList();
+    for each item in items_list {
+      title = item.getJSON("title");
+      if (title == MODULE_NAME) {
+        folder_id = item.getJSON("id");
+      }
+    }
+  }
+  if (folder_id == "") {
+    tokenObj = map();
+    tokenObj.put("folder_name", MODULE_NAME);
+    tokenObj.put("parent", rootFolderId);
+    createFlrResp = zoho.crm.invokeConnector(
+      "gdriveextension.googledriveconnector.createfolder",
+      tokenObj,
+      true
+    );
+    if (createFlrResp == null) {
+      return;
+    }
+    status_code = createFlrResp.get("status_code");
+    resp_obj = createFlrResp.get("response");
+    folder_id = resp_obj.getJSON("id");
+    if (folder_id == "") {
+      return;
+    }
+  }
+
+  tokenObj2 = map();
+  tokenObj2.put("folder_name", folder_name);
+  tokenObj2.put("parent", folder_id);
+  //Creates the folder in Record name
+  createFlrResp2 = zoho.crm.invokeConnector(
+    "gdriveextension.googledriveconnector.createfolder",
+    tokenObj2,
+    true
+  );
+  status_code2 = createFlrResp2.get("status_code");
+  resp_obj2 = createFlrResp2.get("response");
+  rec_folder_id = "";
+
+  if (status_code2 == "200") {
+    rec_folder_id = resp_obj2.getJSON("id");
+  }
+  if (rec_folder_id != "") {
+    updateMap = map();
+    updateMap.put("Drive_Folder_ID", rec_folder_id);
+    updateMap.put(
+      "Drive_URL",
+      "https://drive.google.com/drive/folders/" + rec_folder_id
+    );
+    //Update the Drive Folder ID and URL using updateRecord method
+    update_resp = zoho.crm.update(MODULE_NAME, record_id, updateMap);
+  }
+  return;
 }
-rootFolderStatus = rootFolderResp.get("status_code");
-if (rootFolderStatus == "200")
-{
-rootFolderId = rootFolderResp.get("response").getJSON("id");
-}
-if (rootFolderId != "")
-{
-settingParam = map();
-settingParam.put("apiname", "gdriveextension.google_rootfolder_id");
-settingParam.put("value", rootFolderId);
-setting_resp = zoho.crm.invokeConnector("crm.set", settingParam);
-}
-else
-{
-return;
-}
-}
-parent_obj = map();
-parent_obj.put("parent", rootFolderId);
-parent_obj.put(("maxResults"), 200);
-//Get the folders and files from the Record created under Root Folder using the GDrive API
-folder_items_map = zoho.crm.invokeConnector(("gdriveextension.googledriveconnector.getsubfolders"), parent_obj, true);
-folder_items_status = folder_items_map.get("status_code");
-lead_folder_id = "";
-if (folder_items_status == "200")
-{
-listfolder_resp = folder_items_map.get("response");
-items = listfolder_resp.getJSON("items");
-items_list = items.toJSONList();
-for each item in items_list
-{
-title = item.getJSON("title");
-if (title == "Leads")
-{
-lead_folder_id = item.getJSON("id");
-}
-}
-}
-if (lead_folder_id == "")
-{
-tokenObj = map();
-tokenObj.put("folder_name", "Leads");
-tokenObj.put("parent", rootFolderId);
-createFlrResp = zoho.crm.invokeConnector("gdriveextension.googledriveconnector.createfolder", tokenObj, true);
-if (createFlrResp == null)
-{
-return;
-}
-status_code = createFlrResp.get("status_code");
-resp_obj = createFlrResp.get("response");
-lead_folder_id = resp_obj.getJSON("id");
-if (lead_folder_id == "")
-{
-return;
-}
-}
-//Get the first name and last name from the lead_info to create a folder
-first_name = lead_info.get("First Name");
-last_name = lead_info.get("Last Name");
-if (first_name == null)
-{
-first_name = "";
-}
-if (last_name == null)
-{
-last_name = "";
-}
-full_name = first_name + " " + last_name;
-full_name = full_name.trim();
-tokenObj2 = map();
-tokenObj2.put("folder_name", full_name);
-tokenObj2.put("parent", lead_folder_id);
-//Creates the folder in Record name
-createFlrResp2 = zoho.crm.invokeConnector("gdriveextension.googledriveconnector.createfolder", tokenObj2, true);
-status_code2 = createFlrResp2.get("status_code");
-resp_obj2 = createFlrResp2.get("response");
-rec_folder_id = "";
-if (status_code2 == "200")
-{
-rec_folder_id = resp_obj2.getJSON("id");
-}
-if (rec_folder_id != "")
-{
-updateMap = map();
-updateMap.put("Drive Folder ID", rec_folder_id);
-updateMap.put("Drive URL", "https://drive.google.com/drive/folders/" + rec_folder_id);
-//Update the Drive Folder ID and URL using updateRecord method
-update_resp = zoho.crm.updateRecord("Leads", lead_id + "", updateMap);
-}
-return; }
- 
